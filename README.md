@@ -78,10 +78,13 @@ sudo bash setup.sh
 The script will:
 1. Update the system
 2. Install `mpv` and `v4l-utils`
-3. Patch `/boot/firmware/config.txt` to force 1080p60 on HDMI0
-4. Install the display script, udev rules, and systemd service
-5. Disable the TTY1 console (so it doesn't conflict with the DRM output)
-6. Enable the service to start at boot
+3. Patch `/boot/firmware/config.txt` to force 1080p60 on HDMI0 and suppress the GPU rainbow splash
+4. Patch `/boot/firmware/cmdline.txt` to suppress kernel boot messages and hide the cursor
+5. Install the display script, udev rules, and systemd service
+6. Disable the TTY1 console (so it doesn't conflict with the DRM output)
+7. Enable the service to start at boot
+
+The result is a **fully black screen** from power-on: no splash, no boot text, no cursor. When the ATEM is plugged in, video appears. When it is unplugged, the screen returns to black.
 
 ### Step 4 — Verify it works
 
@@ -172,6 +175,18 @@ mpv's DRM output backend writes directly to the kernel's KMS framebuffer. This m
 - Fewer moving parts = higher reliability
 - Startup is fast (no display server init)
 - Works from a systemd service before any user logs in
+
+### Black screen behaviour
+
+Three layers combine to ensure the display is black whenever no ATEM video is present:
+
+| Layer | Mechanism | Suppresses |
+|---|---|---|
+| GPU firmware | `disable_splash=1` in config.txt | Rainbow square at power-on |
+| Kernel | `quiet loglevel=0 logo.nologo` in cmdline.txt | Boot messages and penguin logo |
+| Console | `vt.global_cursor_default=0` in cmdline.txt | Blinking cursor on TTY1 |
+
+When mpv exits (ATEM unplugged), DRM releases the display and TTY1 becomes visible again — but with all text and cursor suppressed it is just a black framebuffer.
 
 ---
 
