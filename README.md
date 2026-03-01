@@ -60,7 +60,7 @@ In the imager's **Advanced Options** (gear icon):
 SSH into the Pi, then:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ATEMView.git
+git clone https://github.com/tombartindale/ATEMView.git
 ```
 
 > Git may not be installed on a fresh Pi OS Lite image. If so, install it first:
