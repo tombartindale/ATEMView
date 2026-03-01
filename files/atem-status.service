@@ -1,0 +1,20 @@
+# atem-status.service
+# Deployed to: /etc/systemd/system/atem-status.service
+#
+# Serves a live status/diagnostic web page on port 80.
+# Access at: http://atemview.local  (or the Pi's IP address)
+# Page auto-refreshes every 5 seconds.
+
+[Unit]
+Description=ATEMView Status Web Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/atem-status.py
+Restart=always
+RestartSec=5s
+User=root
+
+[Install]
+WantedBy=multi-user.target

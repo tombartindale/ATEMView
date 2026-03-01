@@ -78,11 +78,12 @@ sudo bash setup.sh
 The script will:
 1. Update the system
 2. Install `mpv` and `v4l-utils`
-3. Patch `/boot/firmware/config.txt` to force 1080p60 on HDMI0 and suppress the GPU rainbow splash
-4. Patch `/boot/firmware/cmdline.txt` to suppress kernel boot messages and hide the cursor
-5. Install the display script, udev rules, and systemd service
-6. Disable the TTY1 console (so it doesn't conflict with the DRM output)
-7. Enable the service to start at boot
+3. Patch `/boot/firmware/config.txt` — force 1080p60 on HDMI0, suppress GPU splash, enable UART
+4. Patch `/boot/firmware/cmdline.txt` — suppress kernel boot messages and hide the cursor
+5. Install the display script, udev rules, and display systemd service
+6. Install the status web server (`atem-status.py`) and its systemd service (port 80)
+7. Disable the TTY1 console (so it doesn't conflict with the DRM output)
+8. Enable both services to start at boot
 
 The result is a **fully black screen** from power-on: no splash, no boot text, no cursor. When the ATEM is plugged in, video appears. When it is unplugged, the screen returns to black.
 
@@ -228,8 +229,38 @@ cat /sys/class/drm/*/status
 
 ## Debugging
 
+Three debug interfaces are available, in order of reliability:
+
+### 1. Web status page (easiest)
+
+The setup installs a lightweight HTTP server on **port 80** that shows a live dashboard: ATEM connection state, service status, USB devices, V4L2 devices, and recent logs. It auto-refreshes every 5 seconds.
+
+```
+http://atemview.local
+```
+
+Or by IP address if mDNS isn't available:
+
 ```bash
-# Watch service logs live
+# Find the Pi's IP from another machine
+ping atemview.local
+arp -n | grep -i "b8:27\|dc:a6\|e4:5f"   # Raspberry Pi MAC prefixes
+```
+
+The status page works even if HDMI output is broken. It does **not** work if the network is down.
+
+```bash
+# Check the status server itself
+sudo systemctl status atem-status
+journalctl -u atem-status -f
+```
+
+### 2. SSH (primary remote access)
+
+```bash
+ssh pi@atemview.local
+
+# Watch display service logs live
 journalctl -u atem-display -f
 
 # List detected video devices
@@ -248,6 +279,40 @@ cat /sys/class/drm/*/status
 sudo systemctl stop atem-display
 sudo mpv --vo=drm --drm-connector=HDMI-A-1 --fullscreen av://v4l2:/dev/atem_video
 ```
+
+### 3. UART serial console (last resort)
+
+The setup enables a hardware serial console on the Pi's GPIO header. This works even if the network is down, HDMI is dead, or the Pi has failed to boot fully. You need a **USB-to-TTL serial adapter** (3.3V logic — common, cheap).
+
+**Wiring (Pi 4 GPIO header):**
+
+```
+Pi GPIO 14 (TXD) — physical pin 8  →  RX on adapter
+Pi GPIO 15 (RXD) — physical pin 10 →  TX on adapter
+Pi GND            — physical pin 6  →  GND on adapter
+```
+
+Do **not** connect the adapter's 5V/3.3V pin — the Pi is self-powered.
+
+**Connect from your Mac/PC:**
+
+```bash
+# macOS — find the device name first
+ls /dev/tty.usbserial* /dev/tty.SLAB* /dev/tty.CH340* 2>/dev/null
+
+# Then connect (replace with your actual device)
+screen /dev/tty.usbserial-0001 115200
+# or
+minicom -b 115200 -D /dev/tty.usbserial-0001
+```
+
+**Linux:**
+
+```bash
+screen /dev/ttyUSB0 115200
+```
+
+Press Enter after connecting. You'll get a login prompt. To exit `screen`: `Ctrl-A` then `K`.
 
 ### Common issues
 
