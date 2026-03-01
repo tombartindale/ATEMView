@@ -1,20 +1,21 @@
 # 99-atem.rules
 # Deployed to: /etc/udev/rules.d/99-atem.rules
 #
-# Detects Blackmagic Design UVC devices (vendor ID 1edb) on the video4linux
-# subsystem. Creates a stable /dev/atem_video symlink and starts/stops the
-# display service on plug/unplug.
+# Detects USB V4L2 capture devices and creates a stable /dev/atem_video
+# symlink, then starts/stops the display service on plug/unplug.
 #
-# To find the vendor ID for your specific device:
-#   lsusb | grep -i blackmagic
-# The ID format is: ID VVVV:PPPP  (vendor:product)
-# Update ATTRS{idVendor} below if yours differs from 1edb.
+# Matches any USB video capture device — primarily Blackmagic ATEM mixers
+# but also webcams and other UVC capture cards for testing.
+# ENV{ID_V4L_CAPABILITIES} filters to capture-capable nodes only,
+# avoiding spurious matches on metadata/output nodes the same device may expose.
 
 # On plug-in: create symlink and start display service
-SUBSYSTEM=="video4linux", ACTION=="add", ATTRS{idVendor}=="1edb", \
+SUBSYSTEM=="video4linux", ACTION=="add", SUBSYSTEMS=="usb", \
+    ENV{ID_V4L_CAPABILITIES}=~":capture:", \
     SYMLINK+="atem_video", \
     RUN+="/bin/systemctl start atem-display.service"
 
 # On removal: stop display service (script loop will wait for re-plug)
-SUBSYSTEM=="video4linux", ACTION=="remove", ATTRS{idVendor}=="1edb", \
+SUBSYSTEM=="video4linux", ACTION=="remove", SUBSYSTEMS=="usb", \
+    ENV{ID_V4L_CAPABILITIES}=~":capture:", \
     RUN+="/bin/systemctl stop atem-display.service"

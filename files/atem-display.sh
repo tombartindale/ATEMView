@@ -57,7 +57,6 @@ while true; do
         --video-sync=display-resample \
         --cache=no \
         --demuxer-readahead-secs=0 \
-        --demuxer-lavf-o=video_size=1920x1080,framerate=30,input_format=mjpeg \
         "av://v4l2:${DEVICE}" \
     || true
 

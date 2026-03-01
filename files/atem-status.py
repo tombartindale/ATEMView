@@ -47,6 +47,7 @@ def build_page():
     status_text = "CONNECTED" if plugged else "NOT CONNECTED"
 
     service_out = run(["systemctl", "status", "atem-display", "--no-pager", "-l"])
+    ssh_out = run(["systemctl", "status", "ssh", "--no-pager", "-l"])
     usb_out = run(["lsusb"])
     v4l_out = run(["v4l2-ctl", "--list-devices"])
     log_out = run(["journalctl", "-u", "atem-display", "-n", "40", "--no-pager",
@@ -91,6 +92,7 @@ def build_page():
   <div class="meta">{html.escape(now)} &nbsp;·&nbsp; {html.escape(ip_out)} &nbsp;·&nbsp; {html.escape(uptime_out)}</div>
   <div class="badge">ATEM: {status_text}</div>
   {section("Display service", service_out)}
+  {section("SSH service", ssh_out)}
   {section("USB devices", usb_out)}
   {section("Video (V4L2) devices", v4l_out)}
   {section("Recent logs (atem-display)", log_out)}

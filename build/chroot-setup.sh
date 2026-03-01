@@ -78,13 +78,54 @@ else
 fi
 echo "Default hostname set to: atemview"
 
+# ── Create default user ────────────────────────────────────────────────────────
+# Pi OS Trixie ships with no default user. Create 'pi' with password 'atemview'
+# so the device is accessible out of the box.
+# Change the password after first login:  passwd pi
+
+echo "Creating default user 'atemview'..."
+useradd -m -s /bin/bash atemview
+echo "atemview:usbcvideo" | chpasswd
+# Add to groups required for administration and device access.
+# Ignore errors for groups that may not exist on this image variant.
+for group in sudo video audio plugdev dialout gpio spi i2c; do
+    usermod -aG "$group" atemview 2>/dev/null || true
+done
+echo "    User 'atemview' created — default password: usbcvideo"
+
+# Login banner shown after SSH/console login
+cat > /etc/motd << 'EOF'
+
+  ┌─────────────────────────────────────────────────┐
+  │                   ATEMView                      │
+  │               ATEM USB Display                  │
+  └─────────────────────────────────────────────────┘
+
+  You are logged in with the default credentials.
+  Change your password now:
+
+    passwd
+
+  Status page:  http://atemview.local
+  Display logs: journalctl -u atem-display -f
+
+EOF
+
 # ── Enable network services ────────────────────────────────────────────────────
 # The systemctl stub in setup.sh only handles our own services (in /etc/systemd/system/).
 # SSH and avahi live in /lib/systemd/system/ — now that the stub is fixed to search
 # both paths we can enable them directly.
 
 echo "Enabling SSH..."
+# Pi OS ships with SSH disabled via a blocking drop-in or sshd_not_to_be_run file.
+# Enabling the service via the stub creates the .wants symlink, but the Pi OS
+# override condition may still prevent startup. Belt-and-suspenders approach:
+#   1. Enable the service (symlink via stub)
+#   2. Remove the Pi OS SSH blocking file if present
+#   3. Drop the 'ssh' flag file into the boot partition so Pi OS firstrun also enables it
 systemctl enable ssh.service
+rm -f /etc/ssh/sshd_not_to_be_run
+touch /boot/firmware/ssh
 echo "    Done."
 
 echo "Enabling avahi-daemon (mDNS — required for hostname.local resolution)..."
