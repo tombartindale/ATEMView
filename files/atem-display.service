@@ -1,0 +1,27 @@
+# atem-display.service
+# Deployed to: /etc/systemd/system/atem-display.service
+#
+# Started and stopped by udev rules (99-atem.rules) on USB plug/unplug.
+# Also enabled to start at boot so the loop is running before first plug-in.
+#
+# Takes over TTY1 so the console does not conflict with DRM/KMS output.
+
+[Unit]
+Description=ATEM USB Video Display
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/atem-display.sh
+Restart=on-failure
+RestartSec=3s
+User=root
+
+# Claim TTY1 — prevents the login prompt competing with the DRM framebuffer
+StandardInput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target
