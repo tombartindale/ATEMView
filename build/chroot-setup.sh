@@ -32,7 +32,11 @@ case "$ACTION" in
     enable)
         SERVICE_FILE="/etc/systemd/system/$SERVICE"
         if [[ ! -f "$SERVICE_FILE" ]]; then
-            echo "systemctl stub: $SERVICE_FILE not found, skipping enable"
+            # Fall back to the lib path for distro-provided services (e.g. ssh, avahi-daemon)
+            SERVICE_FILE="/lib/systemd/system/$SERVICE"
+        fi
+        if [[ ! -f "$SERVICE_FILE" ]]; then
+            echo "systemctl stub: $SERVICE not found in /etc or /lib systemd dirs, skipping enable"
             exit 0
         fi
         WANTED_BY=$(grep "^WantedBy=" "$SERVICE_FILE" | head -1 | cut -d= -f2 | tr -d ' ')
@@ -61,6 +65,19 @@ chmod +x /usr/local/bin/systemctl
 
 cd /opt/ATEMView
 bash setup.sh
+
+# ── Enable network services ────────────────────────────────────────────────────
+# The systemctl stub in setup.sh only handles our own services (in /etc/systemd/system/).
+# SSH and avahi live in /lib/systemd/system/ — now that the stub is fixed to search
+# both paths we can enable them directly.
+
+echo "Enabling SSH..."
+systemctl enable ssh.service
+echo "    Done."
+
+echo "Enabling avahi-daemon (mDNS — required for hostname.local resolution)..."
+systemctl enable avahi-daemon.service
+echo "    Done."
 
 # ── Remove stub ────────────────────────────────────────────────────────────────
 

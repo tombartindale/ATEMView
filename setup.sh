@@ -24,7 +24,7 @@ if [[ ! -d "$FILES_DIR" ]]; then
     exit 1
 fi
 
-for f in atem-display.sh atem-display.service 99-atem.rules atem-status.py atem-status.service; do
+for f in atem-display.sh atem-display.service 99-atem.rules atem-status.py atem-status.service atemview-debug.sh atemview-debug.service; do
     if [[ ! -f "$FILES_DIR/$f" ]]; then
         echo "ERROR: Missing required file: files/$f"
         exit 1
@@ -52,20 +52,20 @@ echo ""
 
 # ── 1. System update ──────────────────────────────────────────────────────────
 
-echo "[1/9] Updating package lists..."
+echo "[1/10] Updating package lists..."
 apt-get update -qq
 
-echo "[1/9] Upgrading installed packages..."
+echo "[1/10] Upgrading installed packages..."
 apt-get upgrade -y -qq
 
 # ── 2. Install packages ───────────────────────────────────────────────────────
 
-echo "[2/9] Installing mpv and v4l-utils..."
+echo "[2/10] Installing mpv and v4l-utils..."
 apt-get install -y -qq mpv v4l-utils
 
 # ── 3. Patch config.txt for 1080p60 HDMI and silent boot ─────────────────────
 
-echo "[3/9] Patching $CONFIG for forced 1080p60 on HDMI0 and silent boot..."
+echo "[3/10] Patching $CONFIG for forced 1080p60 on HDMI0 and silent boot..."
 
 # Remove any pre-existing lines we're about to set, to avoid duplicates
 sed -i \
@@ -102,7 +102,7 @@ echo "    Done."
 
 # ── 4. Patch cmdline.txt for silent kernel boot ───────────────────────────────
 
-echo "[4/9] Patching $CMDLINE for silent kernel boot..."
+echo "[4/10] Patching $CMDLINE for silent kernel boot..."
 
 # cmdline.txt must remain a single line — read, append flags if not present, write back
 CMDLINE_CONTENT=$(cat "$CMDLINE")
@@ -120,28 +120,38 @@ cat "$CMDLINE" | sed 's/^/    /'
 
 # ── 5. Install display script ─────────────────────────────────────────────────
 
-echo "[5/9] Installing display script..."
+echo "[5/10] Installing display script..."
 install -m 755 "$FILES_DIR/atem-display.sh" /usr/local/bin/atem-display.sh
 echo "    Installed: /usr/local/bin/atem-display.sh"
 
 # ── 6. Install udev rules ─────────────────────────────────────────────────────
 
-echo "[6/9] Installing udev rules..."
+echo "[6/10] Installing udev rules..."
 install -m 644 "$FILES_DIR/99-atem.rules" /etc/udev/rules.d/99-atem.rules
 udevadm control --reload-rules 2>/dev/null || true
 echo "    Installed: /etc/udev/rules.d/99-atem.rules"
 
 # ── 7. Install and enable display systemd service ─────────────────────────────
 
-echo "[7/9] Installing display systemd service..."
+echo "[7/10] Installing display systemd service..."
 install -m 644 "$FILES_DIR/atem-display.service" /etc/systemd/system/atem-display.service
 systemctl daemon-reload
 systemctl enable atem-display.service
 echo "    Installed and enabled: atem-display.service"
 
-# ── 8. Install and enable status web server ───────────────────────────────────
+# ── 8. Install and enable debug mode service ──────────────────────────────────
 
-echo "[8/9] Installing status web server (port 80)..."
+echo "[8/10] Installing debug mode service..."
+install -m 755 "$FILES_DIR/atemview-debug.sh" /usr/local/bin/atemview-debug.sh
+install -m 644 "$FILES_DIR/atemview-debug.service" /etc/systemd/system/atemview-debug.service
+systemctl daemon-reload
+systemctl enable atemview-debug.service
+echo "    Installed and enabled: atemview-debug.service"
+echo "    Trigger: create /boot/firmware/atemview-debug on the SD card"
+
+# ── 9. Install and enable status web server ───────────────────────────────────
+
+echo "[9/10] Installing status web server (port 80)..."
 install -m 755 "$FILES_DIR/atem-status.py" /usr/local/bin/atem-status.py
 install -m 644 "$FILES_DIR/atem-status.service" /etc/systemd/system/atem-status.service
 systemctl daemon-reload
@@ -149,9 +159,9 @@ systemctl enable atem-status.service
 echo "    Installed and enabled: atem-status.service"
 echo "    Access at: http://$(hostname).local"
 
-# ── 9. Disable TTY1 getty ─────────────────────────────────────────────────────
+# ── 10. Disable TTY1 getty ───────────────────────────────────────────────────
 
-echo "[9/9] Disabling getty on TTY1 (avoids conflict with DRM output)..."
+echo "[10/10] Disabling getty on TTY1 (avoids conflict with DRM output)..."
 systemctl disable --now getty@tty1.service 2>/dev/null || true
 echo "    Done."
 

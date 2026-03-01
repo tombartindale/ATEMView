@@ -9,6 +9,8 @@
 [Unit]
 Description=ATEM USB Video Display
 After=multi-user.target
+# Skip entirely when debug mode is active so TTY1 stays free for the console
+ConditionPathExists=!/boot/firmware/atemview-debug
 
 [Service]
 Type=simple

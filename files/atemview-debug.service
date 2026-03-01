@@ -1,0 +1,21 @@
+# atemview-debug.service
+# Deployed to: /etc/systemd/system/atemview-debug.service
+#
+# Only activates when /boot/firmware/atemview-debug exists on the SD card.
+# Raises kernel log verbosity, patches cmdline.txt for the next reboot,
+# and starts a getty on TTY1 so HDMI shows a login prompt instead of video.
+#
+# atem-display.service is inhibited on the same condition so TTY1 is free.
+
+[Unit]
+Description=ATEMView Debug Mode
+ConditionPathExists=/boot/firmware/atemview-debug
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/atemview-debug.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
