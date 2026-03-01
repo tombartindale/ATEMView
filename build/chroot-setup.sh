@@ -66,6 +66,18 @@ chmod +x /usr/local/bin/systemctl
 cd /opt/ATEMView
 bash setup.sh
 
+# ── Set default hostname ───────────────────────────────────────────────────────
+# Without this, Pi OS defaults to "raspberrypi", so the device appears as
+# raspberrypi.local instead of atemview.local on mDNS.
+
+echo "atemview" > /etc/hostname
+if grep -q "^127.0.1.1" /etc/hosts; then
+    sed -i 's/^127.0.1.1.*/127.0.1.1\tatemview/' /etc/hosts
+else
+    echo -e "127.0.1.1\tatemview" >> /etc/hosts
+fi
+echo "Default hostname set to: atemview"
+
 # ── Enable network services ────────────────────────────────────────────────────
 # The systemctl stub in setup.sh only handles our own services (in /etc/systemd/system/).
 # SSH and avahi live in /lib/systemd/system/ — now that the stub is fixed to search
