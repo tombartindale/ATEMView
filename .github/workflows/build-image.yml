@@ -80,7 +80,12 @@ jobs:
 
       - name: Copy repository into chroot
         run: |
-          sudo cp -r . /mnt/pi/opt/ATEMView
+          # Copy only what setup.sh needs — not the working directory artefacts
+          # (raspios.img, pishrink.sh, etc.) which would fill the image partition
+          sudo mkdir -p /mnt/pi/opt/ATEMView/build
+          sudo cp setup.sh /mnt/pi/opt/ATEMView/
+          sudo cp -r files/ /mnt/pi/opt/ATEMView/files/
+          sudo cp build/chroot-setup.sh /mnt/pi/opt/ATEMView/build/
 
       - name: Run chroot setup
         run: |
