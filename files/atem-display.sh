@@ -26,14 +26,14 @@ while true; do
 
         # Play a synthetic black frame via lavfi to keep the DRM framebuffer open.
         # --length=5 causes mpv to exit after 5 s so the outer loop re-checks the device.
+        # No --drm-connector: let mpv auto-detect the first connected display.
+        # No --drm-mode: use the display's preferred mode (set by config.txt to 1080p60).
         mpv \
             --no-config \
             --no-osc \
             --no-border \
             --fullscreen \
             --vo=drm \
-            --drm-connector=HDMI-A-1 \
-            --drm-mode=1920x1080@60 \
             --length=5 \
             "av://lavfi:color=c=black:size=1920x1080:rate=5" \
         2>/dev/null || true
@@ -51,7 +51,6 @@ while true; do
         --no-border \
         --fullscreen \
         --vo=drm \
-        --drm-connector=HDMI-A-1 \
         --drm-mode=1920x1080@60 \
         --video-sync=display-resample \
         --cache=no \
