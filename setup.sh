@@ -74,6 +74,7 @@ sed -i \
     -e '/^hdmi_mode/d' \
     -e '/^hdmi_drive/d' \
     -e '/^disable_splash/d' \
+    -e '/^enable_uart/d' \
     -e '/^# ATEMView:/d' \
     "$CONFIG"
 
@@ -127,7 +128,7 @@ echo "    Installed: /usr/local/bin/atem-display.sh"
 
 echo "[6/9] Installing udev rules..."
 install -m 644 "$FILES_DIR/99-atem.rules" /etc/udev/rules.d/99-atem.rules
-udevadm control --reload-rules
+udevadm control --reload-rules 2>/dev/null || true
 echo "    Installed: /etc/udev/rules.d/99-atem.rules"
 
 # ── 7. Install and enable display systemd service ─────────────────────────────

@@ -43,9 +43,14 @@ ATEMView/
 
 ## Deployment
 
+> **Pre-built image available.**
+> Check the [GitHub Releases](https://github.com/tombartindale/ATEMView/releases) page for a ready-to-flash `.img.xz`. If a release exists, skip to Step 1 and use that image instead of flashing stock Pi OS and running `setup.sh`.
+
 ### Step 1 — Flash the OS
 
-Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash:
+Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash either:
+- A pre-built ATEMView release image (recommended), or
+- Stock **Raspberry Pi OS Lite 64-bit (Bookworm)** if you intend to run `setup.sh` manually
 
 > **Raspberry Pi OS Lite 64-bit (Bookworm)**
 
@@ -352,3 +357,42 @@ To view current session logs:
 journalctl -u atem-display
 journalctl -b   # all logs this boot
 ```
+
+---
+
+## Building a SD Card Image
+
+The GitHub Actions workflow in [`.github/workflows/build-image.yml`](.github/workflows/build-image.yml) automatically produces a flashable `.img.xz` image using a chroot-based build (no physical Pi required).
+
+### How it works
+
+1. Downloads the official Raspberry Pi OS Lite 64-bit image
+2. Loop-mounts the image and bind-mounts `/proc`, `/sys`, `/dev`
+3. Copies `qemu-aarch64-static` into the chroot so ARM64 binaries run on the x86 GitHub Actions runner
+4. Runs [`build/chroot-setup.sh`](build/chroot-setup.sh) inside the chroot, which:
+   - Installs a `systemctl` stub (systemd cannot run in a chroot; the stub handles `enable`/`disable` via symlinks and silently ignores runtime commands like `start`/`stop`)
+   - Runs `setup.sh` as normal
+   - Cleans up SSH host keys and `machine-id` so each Pi gets a fresh identity on first boot
+5. Shrinks the image with [PiShrink](https://github.com/Drewsif/PiShrink) and compresses with xz
+6. Uploads the image as a workflow artifact and, on tagged releases, as a GitHub Release asset
+
+### Triggering a build
+
+**Automated release** — push a version tag:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+The workflow runs, produces `atemview-v1.0.0.img.xz`, and creates a GitHub Release with it attached.
+
+**Manual build** — go to **Actions → Build SD Card Image → Run workflow** in the GitHub UI. The artifact is available for 30 days under the workflow run.
+
+### What is and isn't pre-configured in the image
+
+| Pre-configured | Not pre-configured (set in Raspberry Pi Imager) |
+|---|---|
+| ATEMView display service | Username and password |
+| Status web server | Hostname |
+| udev hot-swap rules | SSH keys (regenerated on first boot) |
+| Silent 1080p60 boot | Wi-Fi credentials |
+| UART serial console | |

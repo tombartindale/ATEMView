@@ -1,0 +1,158 @@
+name: Build SD Card Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required for gh release create
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Dependencies ──────────────────────────────────────────────────────────
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            qemu-user-static \
+            binfmt-support \
+            wget \
+            xz-utils \
+            parted \
+            e2fsprogs
+
+      # ── Download base image ───────────────────────────────────────────────────
+
+      - name: Download Raspberry Pi OS Lite 64-bit (Bookworm)
+        run: |
+          echo "Downloading Pi OS Lite arm64 (latest)..."
+          wget -q --show-progress \
+            "https://downloads.raspberrypi.com/raspios_lite_arm64_latest" \
+            -O raspios.img.xz
+          echo "Decompressing..."
+          xz --decompress raspios.img.xz
+          echo "Image size: $(du -h raspios.img | cut -f1)"
+
+      # ── Mount image ───────────────────────────────────────────────────────────
+
+      - name: Mount image partitions
+        run: |
+          LOOP=$(sudo losetup --find --show --partscan raspios.img)
+          echo "LOOP=$LOOP" >> $GITHUB_ENV
+          # Give the kernel a moment to create partition nodes
+          sleep 2
+          lsblk "$LOOP"
+          sudo mkdir -p /mnt/pi/boot/firmware
+          sudo mount "${LOOP}p2" /mnt/pi
+          sudo mount "${LOOP}p1" /mnt/pi/boot/firmware
+
+      # ── QEMU chroot setup ─────────────────────────────────────────────────────
+
+      - name: Set up QEMU and bind mounts
+        run: |
+          # Copy QEMU static binary into the chroot so ARM64 binaries can run
+          sudo cp /usr/bin/qemu-aarch64-static /mnt/pi/usr/bin/
+
+          # Bind mounts required for apt and other tools
+          sudo mount --bind /proc    /mnt/pi/proc
+          sudo mount --bind /sys     /mnt/pi/sys
+          sudo mount --bind /dev     /mnt/pi/dev
+          sudo mount --bind /dev/pts /mnt/pi/dev/pts
+
+          # Provide DNS resolution for apt-get (Pi OS resolv.conf may be a
+          # broken symlink to /run/systemd which isn't mounted in the chroot)
+          sudo cp --dereference /etc/resolv.conf /mnt/pi/etc/resolv.conf
+
+          # Verify QEMU is working
+          echo "QEMU test — should print aarch64:"
+          sudo chroot /mnt/pi /bin/uname -m
+
+      # ── Run setup inside chroot ───────────────────────────────────────────────
+
+      - name: Copy repository into chroot
+        run: |
+          sudo cp -r . /mnt/pi/opt/ATEMView
+
+      - name: Run chroot setup
+        run: |
+          sudo chroot /mnt/pi /bin/bash /opt/ATEMView/build/chroot-setup.sh
+
+      # ── Tear down ─────────────────────────────────────────────────────────────
+
+      - name: Unmount image
+        if: always()
+        run: |
+          sudo umount /mnt/pi/dev/pts        2>/dev/null || true
+          sudo umount /mnt/pi/dev            2>/dev/null || true
+          sudo umount /mnt/pi/sys            2>/dev/null || true
+          sudo umount /mnt/pi/proc           2>/dev/null || true
+          sudo umount /mnt/pi/boot/firmware  2>/dev/null || true
+          sudo umount /mnt/pi                2>/dev/null || true
+          sudo losetup -d "$LOOP"            2>/dev/null || true
+
+      # ── Shrink and compress ───────────────────────────────────────────────────
+
+      - name: Shrink and compress image
+        run: |
+          wget -q "https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh"
+          chmod +x pishrink.sh
+          # -Z: compress with xz (smaller, Raspberry Pi Imager supports .img.xz natively)
+          sudo ./pishrink.sh -Z raspios.img atemview.img
+          echo "Final image size: $(du -h atemview.img.xz | cut -f1)"
+
+      # ── Name and upload ───────────────────────────────────────────────────────
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            echo "filename=atemview-${GITHUB_REF_NAME}.img.xz" >> $GITHUB_OUTPUT
+          else
+            SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+            echo "tag=dev-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "filename=atemview-dev-${SHORT_SHA}.img.xz" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rename image
+        run: mv atemview.img.xz "${{ steps.version.outputs.filename }}"
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.filename }}
+          path: ${{ steps.version.outputs.filename }}
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.version.outputs.filename }}" \
+            --title "ATEMView ${{ steps.version.outputs.tag }}" \
+            --notes "## ATEMView ${{ steps.version.outputs.tag }}
+
+          Pre-built SD card image based on Raspberry Pi OS Lite 64-bit (Bookworm).
+
+          ### Flashing
+
+          1. Download the \`.img.xz\` file below
+          2. Open [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+          3. Choose **Use custom image** and select the downloaded file
+          4. In **Advanced Options**: set hostname, username, password, and enable SSH
+          5. Flash to your SD card and boot
+
+          The ATEM display service starts automatically. Plug in the ATEM USB cable to begin.
+
+          See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation."
