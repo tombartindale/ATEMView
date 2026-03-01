@@ -44,13 +44,38 @@ jobs:
 
       # ── Mount image ───────────────────────────────────────────────────────────
 
+      - name: Expand image partition for build headroom
+        run: |
+          # Pi OS Lite root partition (~1.7GB, ~500MB free) is too small for
+          # apt-get upgrade + mpv/ffmpeg dependencies. Add 3GB before mounting.
+          # PiShrink reclaims all unused space before final compression, so the
+          # finished .img.xz is not affected by this expansion.
+          truncate -s +3G raspios.img
+
+          LOOP=$(sudo losetup --find --show --partscan raspios.img)
+          sleep 1
+
+          echo "Resizing partition 2 to fill new space..."
+          sudo parted -s "$LOOP" resizepart 2 100%
+
+          echo "Expanding ext4 filesystem..."
+          sudo e2fsck -f -y "${LOOP}p2"
+          sudo resize2fs "${LOOP}p2"
+
+          sudo losetup -d "$LOOP"
+          echo "Root partition free space after expansion:"
+          LOOP2=$(sudo losetup --find --show --partscan raspios.img)
+          sudo mkdir -p /mnt/check
+          sudo mount "${LOOP2}p2" /mnt/check
+          df -h /mnt/check
+          sudo umount /mnt/check
+          sudo losetup -d "$LOOP2"
+
       - name: Mount image partitions
         run: |
           LOOP=$(sudo losetup --find --show --partscan raspios.img)
           echo "LOOP=$LOOP" >> $GITHUB_ENV
-          # Give the kernel a moment to create partition nodes
-          sleep 2
-          lsblk "$LOOP"
+          sleep 1
           sudo mkdir -p /mnt/pi/boot/firmware
           sudo mount "${LOOP}p2" /mnt/pi
           sudo mount "${LOOP}p1" /mnt/pi/boot/firmware
