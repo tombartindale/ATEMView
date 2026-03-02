@@ -32,7 +32,7 @@ jobs:
 
       # ── Download base image ───────────────────────────────────────────────────
 
-      - name: Download Raspberry Pi OS Lite 64-bit (Bookworm)
+      - name: Download Raspberry Pi OS Lite 64-bit (latest)
         run: |
           echo "Downloading Pi OS Lite arm64 (latest)..."
           wget -q --show-progress \
@@ -173,7 +173,7 @@ jobs:
             --title "ATEMView ${{ steps.version.outputs.tag }}" \
             --notes "## ATEMView ${{ steps.version.outputs.tag }}
 
-          Pre-built SD card image based on Raspberry Pi OS Lite 64-bit (Bookworm).
+          Pre-built SD card image based on Raspberry Pi OS Lite 64-bit.
 
           ### Flashing
 

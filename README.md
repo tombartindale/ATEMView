@@ -50,9 +50,9 @@ ATEMView/
 
 Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to flash either:
 - A pre-built ATEMView release image (recommended), or
-- Stock **Raspberry Pi OS Lite 64-bit (Bookworm)** if you intend to run `setup.sh` manually
+- Stock **Raspberry Pi OS Lite 64-bit** if you intend to run `setup.sh` manually
 
-> **Raspberry Pi OS Lite 64-bit (Bookworm)**
+> **Raspberry Pi OS Lite 64-bit**
 
 In the imager's **Advanced Options** (gear icon):
 - Set hostname (e.g. `atemview`)
