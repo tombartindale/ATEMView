@@ -24,7 +24,7 @@ if [[ ! -d "$FILES_DIR" ]]; then
     exit 1
 fi
 
-for f in atem-display.sh atem-display.service 99-atem.rules atem-status.py atem-status.service atemview-debug.sh atemview-debug.service; do
+for f in atem-display.sh atem-display.service 99-atem.rules atem-status.py atem-status.service atemview-debug.sh atemview-debug.service ssh-keygen-firstboot.service; do
     if [[ ! -f "$FILES_DIR/$f" ]]; then
         echo "ERROR: Missing required file: files/$f"
         exit 1
@@ -131,13 +131,16 @@ install -m 644 "$FILES_DIR/99-atem.rules" /etc/udev/rules.d/99-atem.rules
 udevadm control --reload-rules 2>/dev/null || true
 echo "    Installed: /etc/udev/rules.d/99-atem.rules"
 
-# ── 7. Install and enable display systemd service ─────────────────────────────
+# ── 7. Install and enable systemd services ────────────────────────────────────
 
-echo "[7/10] Installing display systemd service..."
-install -m 644 "$FILES_DIR/atem-display.service" /etc/systemd/system/atem-display.service
+echo "[7/10] Installing systemd services..."
+install -m 644 "$FILES_DIR/atem-display.service"           /etc/systemd/system/atem-display.service
+install -m 644 "$FILES_DIR/ssh-keygen-firstboot.service"   /etc/systemd/system/ssh-keygen-firstboot.service
 systemctl daemon-reload
 systemctl enable atem-display.service
+systemctl enable ssh-keygen-firstboot.service
 echo "    Installed and enabled: atem-display.service"
+echo "    Installed and enabled: ssh-keygen-firstboot.service"
 
 # ── 8. Install and enable debug mode service ──────────────────────────────────
 
@@ -161,8 +164,11 @@ echo "    Access at: http://$(hostname).local"
 
 # ── 10. Disable TTY1 getty ───────────────────────────────────────────────────
 
-echo "[10/10] Disabling getty on TTY1 (avoids conflict with DRM output)..."
-systemctl disable --now getty@tty1.service 2>/dev/null || true
+echo "[10/10] Masking getty on TTY1 (avoids conflict with DRM output)..."
+# 'disable' only removes a symlink from /etc/systemd/system/ — it does not override
+# Pi OS's static enable in /lib/systemd/system/getty.target.wants/. Masking creates
+# /etc/systemd/system/getty@tty1.service -> /dev/null which takes precedence.
+systemctl mask --now getty@tty1.service 2>/dev/null || true
 echo "    Done."
 
 # ── Summary ───────────────────────────────────────────────────────────────────

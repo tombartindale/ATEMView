@@ -50,7 +50,12 @@ case "$ACTION" in
         find /etc/systemd/system -name "$SERVICE" -type l -delete 2>/dev/null || true
         echo "systemctl stub: disabled $SERVICE"
         ;;
-    daemon-reload|is-system-running|start|stop|restart|status|is-active|is-enabled|mask|unmask)
+    mask)
+        # Create a /dev/null symlink that overrides static enables in /lib/systemd/system/
+        ln -sf /dev/null "/etc/systemd/system/$SERVICE"
+        echo "systemctl stub: masked $SERVICE"
+        ;;
+    daemon-reload|is-system-running|start|stop|restart|status|is-active|is-enabled|unmask)
         echo "systemctl stub: $ACTION $SERVICE (no-op in chroot)"
         ;;
     *)
