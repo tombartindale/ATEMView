@@ -3,8 +3,6 @@
 #
 # Started and stopped by udev rules (99-atem.rules) on USB plug/unplug.
 # Also enabled to start at boot so the loop is running before first plug-in.
-#
-# Takes over TTY1 so the console does not conflict with DRM/KMS output.
 
 [Unit]
 Description=ATEM USB Video Display
@@ -15,15 +13,9 @@ ConditionPathExists=!/boot/firmware/atemview-debug
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/atem-display.sh
-Restart=on-failure
+Restart=always
 RestartSec=3s
 User=root
-
-# Claim TTY1 — prevents the login prompt competing with the DRM framebuffer
-StandardInput=tty
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
 
 [Install]
 WantedBy=multi-user.target

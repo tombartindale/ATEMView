@@ -63,9 +63,9 @@ apt-get upgrade -y -qq
 echo "[2/10] Installing mpv and v4l-utils..."
 apt-get install -y -qq mpv v4l-utils
 
-# ── 3. Patch config.txt for 1080p60 HDMI and silent boot ─────────────────────
+# ── 3. Patch config.txt for HDMI and silent boot ─────────────────────────────
 
-echo "[3/10] Patching $CONFIG for forced 1080p60 on HDMI0 and silent boot..."
+echo "[3/10] Patching $CONFIG for HDMI hotplug forcing and silent boot..."
 
 # Remove any pre-existing lines we're about to set, to avoid duplicates
 sed -i \
@@ -81,13 +81,11 @@ sed -i \
 # Append our settings
 cat >> "$CONFIG" << 'EOF'
 
-# ATEMView: Force 1080p60 on HDMI0 (port nearest USB-C power)
-# hdmi_mode options: 16=1080p60  31=1080p50  5=1080i60
-# To target HDMI1 instead, change :0 to :1
-hdmi_force_hotplug:0=1
-hdmi_group:0=1
-hdmi_mode:0=16
-hdmi_drive:0=2
+# ATEMView: Force HDMI hotplug on both ports so the KMS driver always sees a
+# connected display, even when the monitor is in power-save mode (HPD de-asserted).
+# NOTE: hdmi_group/hdmi_mode are intentionally omitted — on Pi OS Trixie with
+# vc4-kms-v3d, display mode is negotiated via EDID by the kernel, not firmware.
+hdmi_force_hotplug=1
 
 # ATEMView: Suppress GPU rainbow splash at power-on
 disable_splash=1
